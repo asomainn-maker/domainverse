@@ -37,6 +37,9 @@ export function contentTypeFor(path: string): string {
   return CONTENT_TYPES[ext] ?? "application/octet-stream";
 }
 
+// If every file in the zip lives under the same single top-level folder
+// (e.g. "myproject/index.html", "myproject/img/a.png"), strip that folder
+// so the deployed site's root matches the folder's contents.
 export function stripCommonRoot(paths: string[]): (p: string) => string {
   const segments = paths
     .filter((p) => p.includes("/"))
