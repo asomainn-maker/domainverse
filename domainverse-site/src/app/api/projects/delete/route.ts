@@ -30,14 +30,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Layihə tapılmadı" }, { status: 404 });
   }
 
-  const { data: list } = await admin.storage
-    .from(BUCKET)
-    .list(project.slug, { limit: 1000 });
-  if (list && list.length > 0) {
-    await admin.storage
-      .from(BUCKET)
-      .remove(list.map((f) => `${project.slug}/${f.name}`));
+  const paths: string[] = [];
+  async function visit(prefix: string) {
+    const { data: list } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000 });
+    for (const item of list ?? []) {
+      const path = `${prefix}/${item.name}`;
+      if (item.id) paths.push(path);
+      else await visit(path);
+    }
   }
+  await visit(project.slug);
+  if (paths.length) await admin.storage.from(BUCKET).remove(paths);
 
   const { error } = await admin.from("projects").delete().eq("id", id);
   if (error) {

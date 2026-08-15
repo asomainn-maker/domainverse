@@ -1,268 +1,142 @@
 "use client";
 
-import { useState } from "react";
+import JSZip from "jszip";
+import Link from "next/link";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Project = {
-  id: string;
-  slug: string;
-  title: string;
-  created_at: string;
-};
+type Project = { id: string; slug: string; title: string; created_at: string };
+type DirectoryInputProps = React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory?: string };
+const directoryInputProps: DirectoryInputProps = { webkitdirectory: "" };
 
-function ProjectTicket({
-  project,
-  onUpdate,
-  onRename,
-  onDelete,
-}: {
-  project: Project;
-  onUpdate: (file: File) => void;
-  onRename: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="flex items-stretch rounded-2xl overflow-hidden border border-ink-line bg-ink-raised">
-      <div className="flex-1 p-5 min-w-0">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-mist mb-2">Layihə</p>
-        <p className="font-display text-lg font-semibold text-paper truncate mb-1">{project.title}</p>
-        <a
-          href={`/links/${project.slug}`}
-          target="_blank"
-          className="font-mono text-xs text-violet-soft break-all hover:underline"
-        >
-          domainverse.store/links/{project.slug}
-        </a>
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-mist">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber" />
-          Canlı
-        </div>
-      </div>
-      <div className="w-px border-l border-dashed border-ink-line ticket-notch" />
-      <div className="w-36 flex flex-col justify-center gap-2 p-4 bg-ink text-xs">
-        <label className="text-mist hover:text-paper cursor-pointer transition-colors">
-          Yenilə
-          <input
-            type="file"
-            accept=".zip"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUpdate(f);
-            }}
-          />
-        </label>
-        <button onClick={onRename} className="text-left text-mist hover:text-paper transition-colors">
-          Adını dəyiş
-        </button>
-        <button onClick={onDelete} className="text-left text-amber/80 hover:text-amber transition-colors">
-          Sil
-        </button>
-      </div>
-    </div>
-  );
+function projectUrl(slug: string) {
+  return `${window.location.origin}/links/${slug}`;
 }
 
-export default function DashboardClient({
-  email,
-  initialProjects,
-}: {
-  email: string;
-  initialProjects: Project[];
-}) {
+export default function DashboardClient({ email, initialProjects }: { email: string; initialProjects: Project[] }) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+  async function packFolder(files: FileList | File[]) {
+    const selected = Array.from(files);
+    if (!selected.length) return;
+    const zip = new JSZip();
+    for (const item of selected) {
+      const relativePath = item.webkitRelativePath || item.name;
+      zip.file(relativePath, item);
+    }
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    setFile(new File([blob], "domainverse-project.zip", { type: "application/zip" }));
   }
 
-  async function handleUpload(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file || !title.trim()) return;
+  async function selectFiles(files: FileList | null) {
+    if (!files?.length) return;
+    setError(null);
+    if (files.length === 1 && files[0].name.toLowerCase().endsWith(".zip")) {
+      setFile(files[0]);
+      return;
+    }
+    await packFolder(files);
+  }
+
+  async function upload(project?: Project, suppliedFile?: File) {
+    const activeFile = suppliedFile ?? file;
+    if (!activeFile || (!project && !title.trim())) return;
     setError(null);
     setUploading(true);
-
     try {
       const formData = new FormData();
-      formData.append("title", title.trim());
-      formData.append("file", file);
-
-      const res = await fetch("/api/projects/upload", { method: "POST", body: formData });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Yükləmə uğursuz oldu");
-        return;
-      }
-
-      setProjects((prev) => [data.project, ...prev]);
+      formData.append("file", activeFile);
+      if (project) formData.append("slug", project.slug);
+      else formData.append("title", title.trim());
+      const response = await fetch("/api/projects/upload", { method: project ? "PUT" : "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Yükləmə uğursuz oldu");
+      if (!project) setProjects((current) => [data.project, ...current]);
       setTitle("");
       setFile(null);
-      const input = document.getElementById("file-input") as HTMLInputElement | null;
-      if (input) input.value = "";
-    } catch {
-      setError("Şəbəkə xətası. Bir az sonra yenidən cəhd edin.");
+      if (zipInputRef.current) zipInputRef.current.value = "";
+      if (folderInputRef.current) folderInputRef.current.value = "";
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Şəbəkə xətası baş verdi");
     } finally {
       setUploading(false);
     }
   }
 
-  async function handleUpdate(project: Project, newFile: File) {
-    const formData = new FormData();
-    formData.append("slug", project.slug);
-    formData.append("file", newFile);
-    const res = await fetch("/api/projects/upload", { method: "PUT", body: formData });
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Yeniləmə uğursuz oldu");
-    }
-  }
-
-  async function handleRename(project: Project) {
+  async function renameProject(project: Project) {
     if (!renameValue.trim()) return;
-    const res = await fetch("/api/projects/rename", {
-      method: "POST",
-      body: JSON.stringify({ id: project.id, title: renameValue.trim() }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Adı dəyişmək uğursuz oldu");
-      return;
-    }
-    setProjects((prev) =>
-      prev.map((p) => (p.id === project.id ? { ...p, title: renameValue.trim() } : p))
-    );
+    const response = await fetch("/api/projects/rename", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: project.id, title: renameValue.trim() }) });
+    if (!response.ok) return setError((await response.json()).error || "Ad dəyişmədi");
+    setProjects((current) => current.map((item) => item.id === project.id ? { ...item, title: renameValue.trim() } : item));
     setRenamingId(null);
   }
 
-  async function handleDelete(project: Project) {
-    if (!confirm(`"${project.title}" silinsin?`)) return;
-    const res = await fetch("/api/projects/delete", {
-      method: "POST",
-      body: JSON.stringify({ id: project.id }),
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error || "Silmək uğursuz oldu");
-      return;
-    }
-    setProjects((prev) => prev.filter((p) => p.id !== project.id));
+  async function deleteProject(project: Project) {
+    if (!confirm(`“${project.title}” silinsin? Bu əməliyyat geri qaytarılmır.`)) return;
+    const response = await fetch("/api/projects/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: project.id }) });
+    if (!response.ok) return setError((await response.json()).error || "Silinmədi");
+    setProjects((current) => current.filter((item) => item.id !== project.id));
   }
 
-  return (
-    <div className="min-h-screen grain">
-      <header className="max-w-4xl mx-auto px-6 pt-8 flex items-center justify-between">
-        <span className="font-display text-lg font-semibold tracking-tight">domainverse</span>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-mist">{email}</span>
-          <button onClick={handleLogout} className="text-mist hover:text-paper underline underline-offset-4">
-            Çıxış
-          </button>
-        </div>
-      </header>
+  async function copyLink(slug: string) {
+    await navigator.clipboard.writeText(projectUrl(slug));
+  }
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-amber mb-2">Buraxılış meydanı</p>
-          <h1 className="font-display text-3xl font-semibold">Sizin layihələriniz</h1>
-        </div>
+  async function logout() {
+    await createClient().auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
-        <form onSubmit={handleUpload} className="rounded-2xl border border-ink-line bg-ink-raised p-6 space-y-4">
-          <h2 className="font-display text-lg font-semibold">Yeni layihə buraxın</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="Layihə adı"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm placeholder:text-mist focus:outline-none focus:ring-2 focus:ring-violet"
-            />
-            <input
-              id="file-input"
-              type="file"
-              accept=".zip"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              required
-              className="rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm text-mist file:mr-3 file:rounded-full file:border-0 file:bg-violet file:text-ink file:px-3 file:py-1.5 file:text-xs file:font-semibold"
-            />
+  return <div className="min-h-screen grain">
+    <header className="border-b border-ink-line bg-ink/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/dashboard" className="font-display text-lg font-semibold">domainverse</Link>
+        <div className="flex items-center gap-3 text-sm"><span className="hidden text-mist sm:inline">{email}</span><button onClick={logout} className="rounded-full border border-ink-line px-3 py-1.5 text-mist hover:text-paper">Çıxış</button></div>
+      </div>
+    </header>
+    <main className="mx-auto grid max-w-6xl gap-8 px-6 py-8 md:grid-cols-[190px_1fr]">
+      <aside className="flex gap-2 overflow-x-auto md:block md:space-y-2">
+        <Link href="/dashboard" className="whitespace-nowrap rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-ink">Layihələr</Link>
+        <a href="#new-project" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-mist hover:text-paper">Yeni layihə</a>
+        <Link href="/dashboard/settings" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-mist hover:text-paper">Settings</Link>
+      </aside>
+      <section className="space-y-8">
+        <div><p className="mb-2 text-xs uppercase tracking-[.25em] text-amber">Project hub</p><h1 className="font-display text-3xl font-semibold">Layihələriniz</h1><p className="mt-2 text-sm text-mist">Qovluğu seçin və ya ZIP faylını sürükləyin — birbaşa canlı link alın.</p></div>
+        <form id="new-project" onSubmit={(event) => { event.preventDefault(); upload(); }} className="rounded-2xl border border-ink-line bg-ink-raised p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h2 className="font-display text-xl font-semibold">Yeni layihə</h2><span className="text-xs text-mist">index.html tələb olunur</span></div>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} required placeholder="Layihənin adı" className="mb-3 w-full rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet" />
+          <div onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={async (event) => { event.preventDefault(); setDragging(false); await selectFiles(event.dataTransfer.files); }} className={`rounded-xl border border-dashed p-8 text-center transition ${dragging ? "border-violet bg-violet/10" : "border-ink-line bg-ink/40"}`}>
+            <p className="font-medium">{file ? file.name : "ZIP faylını buraya sürükləyin"}</p><p className="mt-1 text-xs text-mist">və ya kompüterinizdən qovluq seçin</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={() => zipInputRef.current?.click()} className="rounded-full border border-ink-line px-4 py-2 text-xs hover:border-violet">ZIP seç</button>
+              <button type="button" onClick={() => folderInputRef.current?.click()} className="rounded-full border border-ink-line px-4 py-2 text-xs hover:border-violet">Qovluq seç</button>
+            </div>
+            <input ref={zipInputRef} onChange={(event) => selectFiles(event.target.files)} type="file" accept=".zip,application/zip" className="hidden" />
+            <input ref={folderInputRef} onChange={(event) => selectFiles(event.target.files)} type="file" multiple className="hidden" {...directoryInputProps} />
           </div>
-          <p className="text-xs text-mist">
-            Qovluğunuzu (HTML + şəkillər) .zip formatında sıxıb yükləyin. İçində index.html olmalıdır.
-          </p>
-          {error && (
-            <p className="text-sm text-amber bg-amber/10 border border-amber/30 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={uploading}
-            className="rounded-full bg-amber text-ink font-semibold px-5 py-2.5 text-sm hover:brightness-95 transition disabled:opacity-50"
-          >
-            {uploading ? "Buraxılır…" : "Buraxılışa göndər"}
-          </button>
+          {error && <p className="mt-3 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-sm text-amber">{error}</p>}
+          <button disabled={uploading || !file || !title.trim()} className="mt-4 rounded-full bg-amber px-5 py-2.5 text-sm font-semibold text-ink disabled:opacity-50">{uploading ? "Yüklənir…" : "Canlı link yarat"}</button>
         </form>
-
-        <div className="space-y-4">
-          {projects.length === 0 && (
-            <p className="text-sm text-mist border border-dashed border-ink-line rounded-2xl p-8 text-center">
-              Hələ heç bir layihə buraxılmayıb.
-            </p>
-          )}
-          {renamingId &&
-            (() => {
-              const p = projects.find((x) => x.id === renamingId);
-              if (!p) return null;
-              return (
-                <div className="rounded-2xl border border-violet bg-ink-raised p-5 flex items-center gap-3">
-                  <input
-                    autoFocus
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    className="flex-1 rounded-lg border border-ink-line bg-ink px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet"
-                  />
-                  <button
-                    onClick={() => handleRename(p)}
-                    className="rounded-full bg-violet text-ink text-xs font-semibold px-4 py-2"
-                  >
-                    Saxla
-                  </button>
-                  <button onClick={() => setRenamingId(null)} className="text-xs text-mist">
-                    İmtina
-                  </button>
-                </div>
-              );
-            })()}
-          {projects
-            .filter((p) => p.id !== renamingId)
-            .map((p) => (
-              <ProjectTicket
-                key={p.id}
-                project={p}
-                onUpdate={(f) => handleUpdate(p, f)}
-                onRename={() => {
-                  setRenamingId(p.id);
-                  setRenameValue(p.title);
-                }}
-                onDelete={() => handleDelete(p)}
-              />
-            ))}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">Bütün layihələr</h2><span className="text-xs text-mist">{projects.length} layihə</span></div>
+          {!projects.length && <div className="rounded-2xl border border-dashed border-ink-line p-10 text-center text-sm text-mist">İlk layihənizi buradan paylaşın.</div>}
+          {projects.map((project) => <article key={project.id} className="rounded-2xl border border-ink-line bg-ink-raised p-5">
+            {renamingId === project.id ? <div className="flex gap-2"><input autoFocus value={renameValue} onChange={(event) => setRenameValue(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-ink-line bg-ink px-3 py-2 text-sm" /><button onClick={() => renameProject(project)} className="rounded-lg bg-violet px-3 text-sm font-semibold text-ink">Saxla</button><button onClick={() => setRenamingId(null)} className="text-sm text-mist">İmtina</button></div> : <><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-display text-lg font-semibold">{project.title}</h3><a href={`/links/${project.slug}`} target="_blank" className="font-mono text-xs text-violet-soft hover:underline">/links/{project.slug}</a></div><span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs text-emerald-300">● Canlı</span></div><div className="mt-4 flex flex-wrap gap-2 text-xs"><a href={`/links/${project.slug}`} target="_blank" className="rounded-full bg-violet px-3 py-2 font-semibold text-ink">Baxış</a><button onClick={() => copyLink(project.slug)} className="rounded-full border border-ink-line px-3 py-2 text-mist hover:text-paper">Linki kopyala</button><label className="cursor-pointer rounded-full border border-ink-line px-3 py-2 text-mist hover:text-paper">Yenilə<input type="file" accept=".zip" className="hidden" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) upload(project, selected); }} /></label><button onClick={() => { setRenamingId(project.id); setRenameValue(project.title); }} className="rounded-full border border-ink-line px-3 py-2 text-mist hover:text-paper">Adı dəyiş</button><button onClick={() => deleteProject(project)} className="rounded-full border border-amber/40 px-3 py-2 text-amber">Sil</button></div></>}
+          </article>)}
         </div>
-      </main>
-    </div>
-  );
+      </section>
+    </main>
+  </div>;
 }

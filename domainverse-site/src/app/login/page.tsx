@@ -33,6 +33,20 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setError(null);
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen grain flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -77,6 +91,18 @@ export default function LoginPage() {
             className="w-full rounded-full bg-violet text-ink font-semibold px-4 py-3 text-sm hover:bg-violet-soft transition disabled:opacity-50"
           >
             {loading ? "Yoxlanılır…" : "Daxil ol"}
+          </button>
+
+          <div className="flex items-center gap-3 py-1 text-xs text-mist">
+            <span className="h-px flex-1 bg-ink-line" /> və ya <span className="h-px flex-1 bg-ink-line" />
+          </div>
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full rounded-full border border-ink-line bg-ink px-4 py-3 text-sm font-medium hover:border-violet transition disabled:opacity-50"
+          >
+            Google ilə davam et
           </button>
 
           <p className="text-sm text-mist text-center pt-1">

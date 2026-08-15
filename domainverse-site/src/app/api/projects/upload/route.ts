@@ -5,6 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, randomSuffix, contentTypeFor, stripCommonRoot } from "@/lib/project-utils";
 
 const BUCKET = "projects";
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_FILES = 300;
+
+function safeProjectPath(path: string) {
+  return path && !path.startsWith("/") && !path.includes("\\") && !path.split("/").some((part) => !part || part === "." || part === "..");
+}
 
 async function extractAndUpload(
   admin: ReturnType<typeof createAdminClient>,
@@ -18,9 +24,15 @@ async function extractAndUpload(
   if (entries.length === 0) {
     throw new Error("Zip faylı boşdur");
   }
+  if (entries.length > MAX_FILES) {
+    throw new Error(`Zip faylında ən çox ${MAX_FILES} fayl ola bilər`);
+  }
 
   const stripRoot = stripCommonRoot(entries.map((e) => e.name));
   const normalizedPaths = entries.map((e) => stripRoot(e.name));
+  if (normalizedPaths.some((path) => !safeProjectPath(path))) {
+    throw new Error("Zip faylında təhlükəsiz olmayan fayl adı var");
+  }
 
   const hasIndex = normalizedPaths.some(
     (p) => p.toLowerCase() === "index.html"
@@ -46,11 +58,17 @@ async function extractAndUpload(
 }
 
 async function clearFolder(admin: ReturnType<typeof createAdminClient>, slug: string) {
-  const { data: list } = await admin.storage.from(BUCKET).list(slug, { limit: 1000 });
-  if (list && list.length > 0) {
-    const paths = list.map((f) => `${slug}/${f.name}`);
-    await admin.storage.from(BUCKET).remove(paths);
+  const paths: string[] = [];
+  async function visit(prefix: string) {
+    const { data: list } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000 });
+    for (const item of list ?? []) {
+      const path = `${prefix}/${item.name}`;
+      if (item.id) paths.push(path);
+      else await visit(path);
+    }
   }
+  await visit(slug);
+  if (paths.length) await admin.storage.from(BUCKET).remove(paths);
 }
 
 export async function POST(req: NextRequest) {
@@ -68,6 +86,9 @@ export async function POST(req: NextRequest) {
 
   if (!title || !file) {
     return NextResponse.json({ error: "Ad və fayl tələb olunur" }, { status: 400 });
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "ZIP faylı 25 MB-dan böyük ola bilməz" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -121,6 +142,9 @@ export async function PUT(req: NextRequest) {
 
   if (!slug || !file) {
     return NextResponse.json({ error: "slug və fayl tələb olunur" }, { status: 400 });
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "ZIP faylı 25 MB-dan böyük ola bilməz" }, { status: 400 });
   }
 
   const admin = createAdminClient();
