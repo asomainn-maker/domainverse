@@ -16,52 +16,77 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Şəbəkə xətası. Bir az sonra yenidən cəhd edin.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-semibold">Giriş</h1>
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        <input
-          type="password"
-          required
-          placeholder="Şifrə"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white rounded-md px-3 py-2 text-sm disabled:opacity-50"
-        >
-          {loading ? "..." : "Daxil ol"}
-        </button>
-        <p className="text-sm text-neutral-500">
-          Hesabınız yoxdur?{" "}
-          <Link href="/signup" className="underline">
-            Qeydiyyat
-          </Link>
-        </p>
-      </form>
+    <div className="min-h-screen grain flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <Link href="/" className="font-display text-sm text-mist hover:text-paper mb-8 inline-block">
+          ← domainverse
+        </Link>
+
+        <form onSubmit={handleSubmit} className="rounded-2xl border border-ink-line bg-ink-raised p-8 space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-amber mb-2">Xoş gəldiniz</p>
+            <h1 className="font-display text-2xl font-semibold">Giriş edin</h1>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <input
+              type="email"
+              required
+              placeholder="email@nümunə.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm text-paper placeholder:text-mist focus:outline-none focus:ring-2 focus:ring-violet"
+            />
+            <input
+              type="password"
+              required
+              placeholder="Şifrə"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm text-paper placeholder:text-mist focus:outline-none focus:ring-2 focus:ring-violet"
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-amber bg-amber/10 border border-amber/30 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-full bg-violet text-ink font-semibold px-4 py-3 text-sm hover:bg-violet-soft transition disabled:opacity-50"
+          >
+            {loading ? "Yoxlanılır…" : "Daxil ol"}
+          </button>
+
+          <p className="text-sm text-mist text-center pt-1">
+            Hesabınız yoxdur?{" "}
+            <Link href="/signup" className="text-violet-soft underline underline-offset-4">
+              Qeydiyyat
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

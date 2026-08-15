@@ -1,24 +1,61 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #0b0e17;
+  --ink-raised: #12172a;
+  --ink-line: #232a44;
+  --paper: #f4f2ec;
+  --violet: #8b7cff;
+  --violet-soft: #c9c1ff;
+  --amber: #f5b942;
+  --mist: #8891ad;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: var(--ink);
+  --color-ink-raised: var(--ink-raised);
+  --color-ink-line: var(--ink-line);
+  --color-paper: var(--paper);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-amber: var(--amber);
+  --color-mist: var(--mist);
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: -apple-system, "Segoe UI", sans-serif;
 }
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.grain {
+  background-image: radial-gradient(circle at 1px 1px, rgba(244,242,236,0.06) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.ticket-notch { position: relative; }
+.ticket-notch::before,
+.ticket-notch::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--ink);
+  border-radius: 999px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+.ticket-notch::before { left: -9px; }
+.ticket-notch::after { right: -9px; }

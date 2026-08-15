@@ -17,71 +17,94 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    // If email confirmation is disabled in Supabase, session exists immediately.
-    if (data.session) {
-      router.push("/dashboard");
-      router.refresh();
-    } else {
-      setDone(true);
-    }
-  }
 
-  if (done) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-sm text-center space-y-2">
-          <h1 className="text-xl font-semibold">Emailinizi yoxlayın</h1>
-          <p className="text-sm text-neutral-500">
-            Hesabı təsdiqləmək üçün {email} ünvanına göndərilən linkə klikləyin.
-          </p>
-        </div>
-      </div>
-    );
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({ email, password });
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      if (data.session) {
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        setDone(true);
+      }
+    } catch {
+      setError("Şəbəkə xətası. Bir az sonra yenidən cəhd edin.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-semibold">Qeydiyyat</h1>
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        <input
-          type="password"
-          required
-          minLength={6}
-          placeholder="Şifrə (min 6 simvol)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white rounded-md px-3 py-2 text-sm disabled:opacity-50"
-        >
-          {loading ? "..." : "Qeydiyyatdan keç"}
-        </button>
-        <p className="text-sm text-neutral-500">
-          Artıq hesabınız var?{" "}
-          <Link href="/login" className="underline">
-            Giriş
-          </Link>
-        </p>
-      </form>
+    <div className="min-h-screen grain flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <Link href="/" className="font-display text-sm text-mist hover:text-paper mb-8 inline-block">
+          ← domainverse
+        </Link>
+
+        {done ? (
+          <div className="rounded-2xl border border-ink-line bg-ink-raised p-8 text-center">
+            <p className="text-xs uppercase tracking-[0.2em] text-amber mb-3">Bir addım qalıb</p>
+            <h1 className="font-display text-xl font-semibold mb-3">Emailinizi yoxlayın</h1>
+            <p className="text-sm text-mist leading-relaxed">
+              <span className="font-mono text-paper">{email}</span> ünvanına göndərilən
+              linkə klikləyərək hesabınızı aktivləşdirin.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="rounded-2xl border border-ink-line bg-ink-raised p-8 space-y-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber mb-2">Qeydiyyat</p>
+              <h1 className="font-display text-2xl font-semibold">Buraxılışa başla</h1>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <input
+                type="email"
+                required
+                placeholder="email@nümunə.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm text-paper placeholder:text-mist focus:outline-none focus:ring-2 focus:ring-violet"
+              />
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="Şifrə (min 6 simvol)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-ink-line bg-ink px-4 py-3 text-sm text-paper placeholder:text-mist focus:outline-none focus:ring-2 focus:ring-violet"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-amber bg-amber/10 border border-amber/30 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-full bg-violet text-ink font-semibold px-4 py-3 text-sm hover:bg-violet-soft transition disabled:opacity-50"
+            >
+              {loading ? "Göndərilir…" : "Qeydiyyatdan keç"}
+            </button>
+
+            <p className="text-sm text-mist text-center pt-1">
+              Artıq hesabınız var?{" "}
+              <Link href="/login" className="text-violet-soft underline underline-offset-4">
+                Giriş
+              </Link>
+            </p>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
