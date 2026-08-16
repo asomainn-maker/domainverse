@@ -8,10 +8,12 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Giriş tələb olunur" }, { status: 401 });
 
-  const { title } = await req.json();
+  const { title, description } = await req.json();
   if (typeof title !== "string" || !title.trim() || title.trim().length > 80) {
     return NextResponse.json({ error: "Layihə adı 1-80 simvol olmalıdır" }, { status: 400 });
   }
+  const cleanDescription =
+    typeof description === "string" && description.trim() ? description.trim().slice(0, 500) : null;
 
   const admin = createAdminClient();
   let slug = slugify(title);
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
 
   const { data: project, error } = await admin
     .from("projects")
-    .insert({ user_id: user.id, slug, title: title.trim() })
-    .select("id, slug, title, created_at")
+    .insert({ user_id: user.id, slug, title: title.trim(), description: cleanDescription })
+    .select("id, slug, title, description, view_count, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ project });

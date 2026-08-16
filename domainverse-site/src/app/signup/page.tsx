@@ -54,8 +54,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen grain flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen grain relative overflow-hidden flex items-center justify-center p-6">
+      <div className="glow-radial" />
+      <div className="relative w-full max-w-sm">
         <Link href="/" className="font-display text-sm text-mist hover:text-paper mb-8 inline-block">
           ← domainverse
         </Link>

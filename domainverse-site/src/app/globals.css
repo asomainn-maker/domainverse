@@ -59,3 +59,41 @@ body {
 }
 .ticket-notch::before { left: -9px; }
 .ticket-notch::after { right: -9px; }
+
+/* ---- shared polish utilities ---- */
+html { scroll-behavior: smooth; }
+
+.glow-radial {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  top: 0;
+  height: 560px;
+  background: radial-gradient(circle at 50% 0%, rgba(139, 124, 255, 0.2), transparent 58%);
+}
+
+.chrome-dots { display: inline-flex; align-items: center; gap: 6px; }
+.chrome-dots span { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+.chrome-dots span:nth-child(1) { background: #ff6b6b; }
+.chrome-dots span:nth-child(2) { background: #f5b942; }
+.chrome-dots span:nth-child(3) { background: #67d391; }
+
+.card-lift {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  border-color: var(--violet);
+  box-shadow: 0 24px 60px -30px rgba(139, 124, 255, 0.45);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card-lift, .card-lift:hover { transition: none; transform: none; }
+}

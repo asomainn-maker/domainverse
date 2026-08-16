@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const title = (formData.get("title") as string | null)?.trim();
+  const description = ((formData.get("description") as string | null) ?? "").trim().slice(0, 500);
   const file = formData.get("file") as File | null;
 
   if (!title || !file) {
@@ -116,8 +117,8 @@ export async function POST(req: NextRequest) {
 
   const { data: project, error: insertError } = await admin
     .from("projects")
-    .insert({ user_id: user.id, slug, title })
-    .select("id, slug, title, created_at")
+    .insert({ user_id: user.id, slug, title, description: description || null })
+    .select("id, slug, title, description, view_count, created_at")
     .single();
 
   if (insertError) {

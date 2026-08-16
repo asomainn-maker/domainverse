@@ -25,6 +25,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // IMPORTANT: this refreshes the auth session (and rewrites the cookies)
+  // on every navigational request. Supabase rotates refresh tokens, and
+  // Server Components can't write cookies — so if this refresh only ran on
+  // /dashboard, visiting /explore or /p/[slug] with an about-to-expire
+  // token would rotate the token server-side without persisting the new
+  // cookie, silently invalidating the session and causing a real logout
+  // the next time /dashboard tried to refresh. Running it broadly avoids that.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -39,5 +46,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|links/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };
