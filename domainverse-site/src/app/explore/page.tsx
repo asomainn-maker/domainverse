@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 0;
 
 export default async function ExplorePage() {
   const admin = createAdminClient();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: projects } = await admin
     .from("projects")
@@ -42,15 +47,26 @@ export default async function ExplorePage() {
           <Link href="/explore" className="text-paper">
             Kəşf et
           </Link>
-          <Link href="/login" className="text-mist hover:text-paper transition-colors">
-            Giriş
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full bg-violet text-ink px-4 py-2 font-medium hover:bg-violet-soft transition-colors"
-          >
-            Qeydiyyat
-          </Link>
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-violet text-ink px-4 py-2 font-medium hover:bg-violet-soft transition-colors"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="text-mist hover:text-paper transition-colors">
+                Giriş
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-full bg-violet text-ink px-4 py-2 font-medium hover:bg-violet-soft transition-colors"
+              >
+                Qeydiyyat
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 
