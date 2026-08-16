@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const capabilities = [
   ["01", "Bir kliklə deploy", "Qovluğu seçin. HTML, CSS, JavaScript və media faylları birbaşa canlı linkə çevrilsin."],
@@ -6,21 +7,49 @@ const capabilities = [
   ["03", "Sizin infrastruktur", "Girişlər, layihələr və fayllar sizin Supabase və Vercel hesablarınızda qalır."],
 ];
 
-function ProductPreview() {
+function formatCount(n: number) {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return `${n}`;
+}
+
+export const revalidate = 0;
+
+function ProductPreview({
+  projectCount,
+  viewCount,
+  latest,
+}: {
+  projectCount: number;
+  viewCount: number;
+  latest: { title: string; slug: string } | null;
+}) {
   return <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#12172a] p-3 shadow-[0_40px_100px_-35px_rgba(122,110,255,.7)]">
     <div className="flex items-center gap-2 border-b border-white/10 px-3 pb-3 text-[11px] text-mist"><span className="h-2 w-2 rounded-full bg-[#ff6b6b]"/><span className="h-2 w-2 rounded-full bg-[#f5b942]"/><span className="h-2 w-2 rounded-full bg-[#67d391]"/><span className="ml-3 rounded-md bg-white/5 px-3 py-1 font-mono">domainverse.store/dashboard</span></div>
     <div className="grid grid-cols-[106px_1fr] gap-3 pt-3">
       <aside className="rounded-2xl bg-black/20 p-3 text-[10px] text-mist"><p className="mb-5 font-display text-sm font-semibold text-paper">domainverse</p><p className="rounded-md bg-violet px-2 py-1.5 font-medium text-ink">Layihələr</p><p className="mt-2 px-2">Repositories</p><p className="mt-2 px-2">Domains</p><p className="mt-2 px-2">API tokens</p></aside>
-      <div className="p-2"><div className="flex items-center justify-between"><div><p className="text-[10px] uppercase tracking-[.2em] text-amber">Workspace</p><p className="mt-1 font-display text-xl font-semibold">Salam, yaradıcı.</p></div><span className="rounded-full bg-violet px-3 py-1.5 text-[10px] font-bold text-ink">+ Yeni layihə</span></div><div className="mt-4 grid gap-2 sm:grid-cols-3"><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Canlı layihələr</p><p className="mt-2 font-display text-2xl">12</p></div><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Bu ay baxış</p><p className="mt-2 font-display text-2xl">2.4k</p></div><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Deploy status</p><p className="mt-2 text-sm text-emerald-300">● Stable</p></div></div><div className="mt-3 rounded-xl border border-white/10 bg-[#0b0e17] p-3"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold">portfolio-2026</p><p className="mt-1 font-mono text-[10px] text-violet-soft">/links/portfolio-2026</p></div><span className="rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-300">● Live</span></div></div></div>
+      <div className="p-2"><div className="flex items-center justify-between"><div><p className="text-[10px] uppercase tracking-[.2em] text-amber">Workspace</p><p className="mt-1 font-display text-xl font-semibold">Salam, yaradıcı.</p></div><span className="rounded-full bg-violet px-3 py-1.5 text-[10px] font-bold text-ink">+ Yeni layihə</span></div><div className="mt-4 grid gap-2 sm:grid-cols-3"><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Canlı layihələr</p><p className="mt-2 font-display text-2xl">{formatCount(projectCount)}</p></div><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Cəmi baxış</p><p className="mt-2 font-display text-2xl">{formatCount(viewCount)}</p></div><div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-mist">Deploy status</p><p className="mt-2 text-sm text-emerald-300">● Stable</p></div></div>{latest && <div className="mt-3 rounded-xl border border-white/10 bg-[#0b0e17] p-3"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold">{latest.title}</p><p className="mt-1 font-mono text-[10px] text-violet-soft">/links/{latest.slug}</p></div><span className="rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-300">● Live</span></div></div>}</div>
     </div>
   </div>;
 }
 
-export default function Home() {
+export default async function Home() {
+  const admin = createAdminClient();
+  const { count: projectCount } = await admin
+    .from("projects")
+    .select("*", { count: "exact", head: true });
+  const { data: viewRows } = await admin.from("projects").select("view_count");
+  const viewCount = (viewRows ?? []).reduce((sum, r) => sum + (r.view_count ?? 0), 0);
+  const { data: latestRows } = await admin
+    .from("projects")
+    .select("title, slug")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const latest = latestRows?.[0] ?? null;
+
   return <div className="min-h-screen overflow-hidden grain"><div className="pointer-events-none absolute inset-x-0 top-0 h-[600px] bg-[radial-gradient(circle_at_50%_0%,rgba(139,124,255,.22),transparent_58%)]"/>
     <header className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-6"><Link href="/" className="font-display text-xl font-semibold tracking-tight">domainverse<span className="text-violet-soft">.</span></Link><nav className="flex flex-wrap items-center gap-4 text-xs text-mist sm:gap-6 sm:text-sm"><a href="#how" className="hidden hover:text-paper sm:inline">Necə işləyir</a><a href="#features" className="hidden hover:text-paper sm:inline">İmkanlar</a><Link href="/explore" className="hover:text-paper">Kəşf et</Link><Link href="/login" className="hover:text-paper">Giriş</Link></nav><Link href="/signup" className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink transition hover:bg-violet-soft">Başla</Link></header>
     <main className="relative"><section className="mx-auto max-w-7xl px-6 pb-24 pt-16 text-center md:pt-24"><div className="inline-flex items-center gap-2 rounded-full border border-violet/30 bg-violet/10 px-3 py-1.5 text-xs text-violet-soft"><span className="h-1.5 w-1.5 rounded-full bg-amber"/> Static layihələr üçün yeni ev</div><h1 className="mx-auto mt-7 max-w-4xl font-display text-5xl font-semibold leading-[.98] tracking-[-.055em] md:text-7xl">Fikirdən canlı linkə.<br/><span className="bg-gradient-to-r from-violet-soft via-paper to-amber bg-clip-text text-transparent">Bir workspace-də.</span></h1><p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-mist md:text-lg">Domainverse HTML layihələrinizi, paylaşım linklərinizi və gələcək repository iş axınınızı sadə, sürətli və professional bir məhsulda birləşdirir.</p><div className="mt-9 flex flex-wrap justify-center gap-3"><Link href="/signup" className="rounded-full bg-violet px-6 py-3 text-sm font-bold text-ink transition hover:bg-violet-soft">Workspace yarat <span className="ml-1">→</span></Link><Link href="/login" className="rounded-full border border-ink-line px-6 py-3 text-sm font-medium hover:border-violet">Dashboard-a keç</Link></div><p className="mt-5 text-xs text-mist">Pulsuz başlayın · Kredit kartı lazım deyil</p></section>
-      <section className="mx-auto max-w-7xl px-6 pb-28"><ProductPreview/></section>
+      <section className="mx-auto max-w-7xl px-6 pb-28"><ProductPreview projectCount={projectCount ?? 0} viewCount={viewCount} latest={latest}/></section>
       <section id="features" className="border-y border-ink-line bg-white/[.015]"><div className="mx-auto grid max-w-7xl gap-0 px-6 md:grid-cols-3">{capabilities.map(([number,title,copy]) => <article key={number} className="border-ink-line py-10 md:border-r md:px-8 md:last:border-0"><p className="font-mono text-xs text-amber">{number}</p><h2 className="mt-5 font-display text-2xl font-semibold">{title}</h2><p className="mt-3 max-w-sm text-sm leading-relaxed text-mist">{copy}</p></article>)}</div></section>
       <section id="how" className="mx-auto max-w-7xl px-6 py-28"><div className="grid gap-12 md:grid-cols-[.8fr_1.2fr]"><div><p className="text-xs uppercase tracking-[.25em] text-amber">Sadə proses</p><h2 className="mt-4 font-display text-4xl font-semibold tracking-[-.04em]">İşiniz görünməyə layiqdir.</h2><p className="mt-5 max-w-md text-sm leading-relaxed text-mist">Faylları ilə məşğul olun, serverlə yox. Domainverse dağıtımı sizin üçün aydın və idarəolunan saxlayır.</p></div><ol className="space-y-3">{[["01","Qovluğu seçin","HTML faylı olan layihənizi seçin və ya sürükləyin."],["02","Link yaradın","Fayllar təhlükəsiz Storage-a yüklənir və canlı link açılır."],["03","İdarə edin","Layihəyə qayıdın, preview edin, yeniləyin və paylaşın."]].map(([n,t,d]) => <li key={n} className="flex gap-5 rounded-2xl border border-ink-line bg-ink-raised p-5"><span className="font-mono text-sm text-violet-soft">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-mist">{d}</p></div></li>)}</ol></div></section>
       <section className="mx-auto max-w-7xl px-6 pb-28"><div className="rounded-3xl border border-violet/30 bg-[linear-gradient(120deg,rgba(139,124,255,.18),rgba(245,185,66,.08))] px-7 py-12 text-center md:px-16"><p className="text-xs uppercase tracking-[.25em] text-amber">Hazırsınız?</p><h2 className="mx-auto mt-4 max-w-2xl font-display text-4xl font-semibold tracking-[-.04em]">Növbəti layihənizi indi dünyaya göstərin.</h2><Link href="/signup" className="mt-7 inline-block rounded-full bg-paper px-6 py-3 text-sm font-bold text-ink">Pulsuz workspace yarat</Link></div></section>
