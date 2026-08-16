@@ -94,12 +94,7 @@ export default function ProjectDetailClient({
         </p>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-ink-line bg-ink-raised">
-        <div className="flex items-center gap-2 border-b border-ink-line px-6 py-2.5">
-          <span className="chrome-dots"><span/><span/><span/></span>
-          <span className="ml-2 font-mono text-[10px] text-mist">şərhlər.log</span>
-        </div>
-        <div className="p-6">
+      <div className="rounded-2xl border border-ink-line bg-ink-raised p-6">
         <h2 className="font-display text-lg font-semibold mb-4">Şərhlər ({comments.length})</h2>
 
         <div className="space-y-4 mb-5">
@@ -141,7 +136,6 @@ export default function ProjectDetailClient({
             .
           </p>
         )}
-        </div>
       </div>
     </div>
   );

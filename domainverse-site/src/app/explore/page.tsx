@@ -38,9 +38,8 @@ export default async function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen grain relative overflow-hidden">
-      <div className="glow-radial" />
-      <header className="relative max-w-5xl mx-auto px-6 pt-8 flex items-center justify-between">
+    <div className="min-h-screen grain">
+      <header className="max-w-5xl mx-auto px-6 pt-8 flex items-center justify-between">
         <Link href="/" className="font-display text-lg font-semibold tracking-tight">
           domainverse
         </Link>
@@ -76,10 +75,9 @@ export default async function ExplorePage() {
         <h1 className="font-display text-3xl font-semibold mb-8">Bütün layihələr</h1>
 
         {(!projects || projects.length === 0) && (
-          <div className="border border-dashed border-ink-line rounded-2xl p-10 text-center">
-            <p className="text-2xl mb-2 opacity-60">◌</p>
-            <p className="text-sm text-mist">Hələ heç bir layihə buraxılmayıb — birinci ol.</p>
-          </div>
+          <p className="text-sm text-mist border border-dashed border-ink-line rounded-2xl p-8 text-center">
+            Hələ heç bir layihə buraxılmayıb.
+          </p>
         )}
 
         <div className="grid sm:grid-cols-2 gap-5">
@@ -87,26 +85,18 @@ export default async function ExplorePage() {
             <Link
               key={p.id}
               href={`/p/${p.slug}`}
-              className="card-lift block overflow-hidden rounded-2xl border border-ink-line bg-ink-raised"
+              className="block rounded-2xl border border-ink-line bg-ink-raised p-5 hover:border-violet transition-colors"
             >
-              <div className="flex items-center gap-2 border-b border-ink-line px-4 py-2.5">
-                <span className="chrome-dots"><span/><span/><span/></span>
-                <span className="ml-2 truncate font-mono text-[10px] text-mist">
-                  domainverse.store/p/{p.slug}
-                </span>
-              </div>
-              <div className="p-5">
-                <p className="font-display text-lg font-semibold text-paper mb-1 truncate">{p.title}</p>
-                {owners[p.user_id] && (
-                  <p className="text-xs text-violet-soft mb-2">@{owners[p.user_id]}</p>
-                )}
-                {p.description && (
-                  <p className="text-sm text-mist line-clamp-2 mb-3">{p.description}</p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-mist">
-                  <span>♥ {likeCounts[p.id] ?? 0}</span>
-                  <span>👁 {p.view_count ?? 0}</span>
-                </div>
+              <p className="font-display text-lg font-semibold text-paper mb-1 truncate">{p.title}</p>
+              {owners[p.user_id] && (
+                <p className="text-xs text-mist mb-2">@{owners[p.user_id]}</p>
+              )}
+              {p.description && (
+                <p className="text-sm text-mist line-clamp-2 mb-3">{p.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-xs text-mist">
+                <span>♥ {likeCounts[p.id] ?? 0}</span>
+                <span>👁 {p.view_count ?? 0}</span>
               </div>
             </Link>
           ))}
